@@ -1,6 +1,5 @@
 <template>
   <div class="user-info">
-    <!-- 添加用户头像卡片 -->
     <el-card class="avatar-card">
       <div class="avatar-container">
         <el-avatar 
@@ -8,18 +7,21 @@
           :src="userInfo.avatarUrl || defaultAvatar"
         />
         <div class="avatar-actions">
-          <el-input
-            v-model="avatarUrl"
-            placeholder="请输入头像URL"
-            class="avatar-input"
-          />
-          <el-button 
-            type="primary" 
-            @click="handleUpdateAvatar"
-            :loading="updating"
+          <el-upload
+            class="avatar-uploader"
+            :show-file-list="false"
+            :before-upload="beforeAvatarUpload"
+            :http-request="handleAvatarUpload"
           >
-            更新头像
-          </el-button>
+            <el-button type="primary" :loading="updating">
+              {{ updating ? '上传中...' : '更换头像' }}
+            </el-button>
+            <template #tip>
+              <div class="el-upload__tip">
+                只能上传 jpg/png 文件，且不超过10MB
+              </div>
+            </template>
+          </el-upload>
         </div>
       </div>
     </el-card>
@@ -92,7 +94,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getSubmissionStatistics } from '../../api/statistics'
-import { updateAvatar } from '../../api/user'
+import { uploadAvatar } from '../../api/user'
 import { ElMessage } from 'element-plus'
 
 // 添加新的响应式变量
@@ -172,6 +174,41 @@ const format = (percentage) => {
                 statistics.value.totalMediumCount + 
                 statistics.value.totalHardCount
   return `${totalSolved}/${total}`
+}
+
+// 上传前校验
+const beforeAvatarUpload = (file) => {
+  const isJPGOrPNG = ['image/jpeg', 'image/png'].includes(file.type)
+  const isLt10M = file.size / 1024 / 1024 < 10
+
+  if (!isJPGOrPNG) {
+    ElMessage.error('头像只能是 JPG 或 PNG 格式!')
+    return false
+  }
+  if (!isLt10M) {
+    ElMessage.error('头像大小不能超过 10MB!')
+    return false
+  }
+  return true
+}
+
+// 自定义上传方法
+const handleAvatarUpload = async (options) => {
+  updating.value = true
+  try {
+    const res = await uploadAvatar(userInfo.value.id, options.file)
+    if (res.code === 200) {
+      ElMessage.success('头像更新成功')
+      // 更新本地存储的用户信息
+      userInfo.value.avatarUrl = res.data
+      localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
+    }
+  } catch (error) {
+    console.error('上传头像失败:', error)
+    ElMessage.error('上传头像失败')
+  } finally {
+    updating.value = false
+  }
 }
 </script>
 
@@ -261,5 +298,16 @@ const format = (percentage) => {
 
 .hard :deep(.el-progress-bar__inner) {
   background-color: #F56C6C;
+}
+
+.avatar-uploader {
+  width: 100%;
+  text-align: center;
+}
+
+.el-upload__tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 5px;
 }
 </style>

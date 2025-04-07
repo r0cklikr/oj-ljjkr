@@ -32,3 +32,17 @@ export function updateAvatar(userId, avatarUrl) {
     }
   })
 }
+
+export function uploadAvatar(userId, file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  return request({
+    url: `/api/user/avatar/upload?userId=${userId}`,
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
